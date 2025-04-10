@@ -4,41 +4,32 @@ import pandas as pd
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from rouge_score import rouge_scorer
 from bert_score import score as bert_score
-import matplotlib.pyplot as plt
-import seaborn as sns
 from tqdm import tqdm
+from plotting import ue_table, plot_PRR
 
-# === Setup ===
+# Setup 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model_name = "facebook/mbart-large-50-many-to-many-mmt"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
 model.eval()
 
-src_lang = "nl_XX"
-tgt_lang = "en_XX"
+src_lang = "en_XX"
+tgt_lang = "nl_XX"
 tokenizer.src_lang = src_lang
 
-# === Mini-datasets ===
+# Dataset
 datasets = {
     "MT": [
-        ("Ik hou van programmeren.", "I love programming."),
-        ("Het regent vandaag.", "It is raining today."),
-        ("De kat zit op de mat.", "The cat is sitting on the mat.")
-    ],
-    "TS": [
-        ("De overheid heeft vandaag aangekondigd dat de belastingen volgend jaar zullen stijgen vanwege economische omstandigheden.", "Belastingen stijgen volgend jaar."),
-        ("Na een spannende wedstrijd won Ajax met 2-1 van PSV in de laatste minuut.", "Ajax wint met 2-1 van PSV."),
-        ("Wetenschappers ontdekten een nieuwe planeet buiten ons zonnestelsel.", "Nieuwe planeet ontdekt.")
-    ],
-    "QA": [
-        ("Wat is de hoofdstad van Nederland? Amsterdam is de grootste stad van Nederland en ook de hoofdstad.", "Amsterdam"),
-        ("Wie schreef het boek 'De Avonden'? Gerard Reve schreef het in 1947.", "Gerard Reve"),
-        ("Wat is de langste rivier in Nederland? De Rijn stroomt door meerdere landen en is de langste rivier.", "De Rijn")
-    ]
-}
+        ("I love programming.", "Ik hou van programmeren."),
+        ("It is raining today.", "Het regent vandaag."),
+        ("Will you invite me to your brother-in-law's birthday?.", "Nodig je mij uit naar je zwager's verjaardag?."),
+        ("It is raining cats and dogs.", "Het regent pijpestelen."),
+        ("I disagree.", "Ik ben het er niet mee eens.")
+    ]} 
 
-# === UE Methoden ===
+
+# UE Methods
 def mean_token_entropy(logits):
     probs = torch.nn.functional.softmax(logits, dim=-1)
     log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
@@ -50,10 +41,6 @@ def max_sequence_probability(logits):
     max_probs = probs.max(dim=-1).values
     return max_probs.mean().item()
 
-def topk_variance(logits, k=5):
-    topk_vals = torch.topk(logits, k=k, dim=-1).values
-    return topk_vals.var(dim=-1).mean().item()
-
 def normalized_entropy(logits):
     probs = torch.nn.functional.softmax(logits, dim=-1)
     log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
@@ -64,21 +51,20 @@ def normalized_entropy(logits):
 ue_methods = {
     "MeanEntropy": mean_token_entropy,
     "MaxSeqProb": max_sequence_probability,
-    "TopKVar": topk_variance,
     "NormEntropy": normalized_entropy,
 }
 
-# === Evaluatie loop ===
+# Evaluation loop
 rows = []
 
 for task_name, samples in datasets.items():
-    print(f"\n🔍 Evaluating task: {task_name}")
+    print(f"Evaluating task: {task_name}")
     for input_text, reference in tqdm(samples):
-        # Invoeren
+        # Input
         inputs = tokenizer(input_text, return_tensors="pt", truncation=True).to(device)
         inputs['forced_bos_token_id'] = tokenizer.lang_code_to_id[tgt_lang]
 
-        # Genereer output
+        # Generate output
         with torch.no_grad():
             output = model.generate(
                 **inputs,
@@ -88,17 +74,20 @@ for task_name, samples in datasets.items():
             )
             tokens = output.sequences[0]
             generated_text = tokenizer.decode(tokens, skip_special_tokens=True)
+            print("\n generated text ", generated_text)
             logits = torch.stack(output.scores).squeeze(1)
+            logits = torch.clamp(logits, min=-1e9, max=1e9)
 
-        # Bereken ROUGE & BERTScore
+        # Calculate ROUGE & BERTScore
         rouge = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
         rouge_l = rouge.score(reference, generated_text)['rougeL'].fmeasure
-        _, _, bert = bert_score([generated_text], [reference], lang="en", verbose=False)
+        _, _, bert = bert_score([generated_text], [reference], lang="nl", verbose=False)
         bert = bert.numpy().item()
 
         # UE scores
         for method_name, func in ue_methods.items():
             ue_score = func(logits)
+            print(f"{method_name} score: {ue_score:.4f}")
             rows.append({
                 "Task": task_name,
                 "Method": method_name,
@@ -107,16 +96,12 @@ for task_name, samples in datasets.items():
                 "BERTScore": bert
             })
 
-# === Tabel maken ===
 df = pd.DataFrame(rows)
-summary = df.groupby(["Task", "Method"])[["ROUGE-L", "BERTScore"]].mean().round(3)
+print("\n\n dataframe: ", df)
 
-# === Heatmap visualiseren ===
-plt.figure(figsize=(10, 6))
-sns.heatmap(summary, annot=True, cmap="Greens", fmt=".2f", linewidths=0.5, cbar=True)
-plt.title("Uncertainty Estimation Performance (donkergroen = beter)", fontsize=14)
-plt.tight_layout()
+ue_table(df, rows)
 
-# === Opslaan als afbeelding ===
-plt.savefig("ue_table_groen_heatmap.png")
-plt.show()
+# Sort predictions by uncertainty score
+df_sorted = df.sort_values(by="UE_Score", ascending=True)
+
+plot_PRR(df_sorted)
