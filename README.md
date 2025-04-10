@@ -31,4 +31,4 @@ The main methodology of our project was heavily inspired by the work done by Fad
 ## References
 <a id="1">[1]</a> 
 Fadeeva et al. (2023). LM-Polygraph: Uncertainty estimation for language models. In Y. Feng & E. Lefever (Eds.), *Proceedings of the 2023 conference on empirical methods
-in natural language processing: System demonstrations* (pp. 446–461). 
+in natural language processing: System demonstrations* (pp. 446–461). Retrieved from https://arxiv.org/abs/2311.07383 
