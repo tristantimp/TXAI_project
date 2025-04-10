@@ -5,7 +5,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from rouge_score import rouge_scorer
 from bert_score import score as bert_score
 from tqdm import tqdm
-from plotting import ue_table, plot_PRR
+from plotting import ue_heatmap, plot_PRR, ue_grouped_table
 
 # Setup 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -91,17 +91,22 @@ for task_name, samples in datasets.items():
             rows.append({
                 "Task": task_name,
                 "Method": method_name,
-                "UE_Score": ue_score,
+                "UE Score": ue_score,
                 "ROUGE-L": rouge_l,
                 "BERTScore": bert
             })
-
+            
+# create dafaframe of uncertainty estimates
 df = pd.DataFrame(rows)
-print("\n\n dataframe: ", df)
 
-ue_table(df, rows)
+# group uncertainty estimates by ue method
+ue_grouped_table(df)
+
+# create heatmap of uncertainty estimates
+ue_heatmap(df, rows)
 
 # Sort predictions by uncertainty score
-df_sorted = df.sort_values(by="UE_Score", ascending=True)
+df_sorted = df.sort_values(by="UE Score", ascending=True)
 
+# compute and plot PRR
 plot_PRR(df_sorted)

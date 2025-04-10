@@ -2,11 +2,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import auc
 
-def ue_table(df, rows):
+def ue_heatmap(df, rows):
     # Pivot the DataFrame to prepare for heatmap
     heatmap_data = df.pivot_table(
         index=["Task", "Method"], 
-        values=["UE_Score", "ROUGE-L", "BERTScore"], 
+        values=["UE Score", "ROUGE-L", "BERTScore"], 
         aggfunc="mean"
     )
 
@@ -61,24 +61,24 @@ def compute_auc(pr_curve):
 
 def plot_PRR(df_sorted):
     pr_rouge = compute_pr_curve(df_sorted, "ROUGE-L")
-    print("\n\n pr_rouge", pr_rouge)
+    #print("\n\n pr_rouge", pr_rouge)
     pr_bert = compute_pr_curve(df_sorted, "BERTScore")
-    print("\n\n pr_bert", pr_bert)
+    #print("\n\n pr_bert", pr_bert)
 
     aucpr_unc_rouge = compute_auc(pr_rouge)
-    print("\n\n aucpr_unc_rouge", aucpr_unc_rouge)
+    #print("\n\n aucpr_unc_rouge", aucpr_unc_rouge)
     aucpr_unc_bert = compute_auc(pr_bert)
-    print("\n\n aucpr_unc_bert", aucpr_unc_bert)
+    #print("\n\n aucpr_unc_bert", aucpr_unc_bert)
 
     # Random rejection curve (baseline)
     random_curve = [df_sorted["ROUGE-L"].mean()] * (len(df_sorted) + 1)
     aucpr_random_rouge = compute_auc(random_curve)
-    print("\n\n aucpr_random_rouge", aucpr_random_rouge)
+    #print("\n\n aucpr_random_rouge", aucpr_random_rouge)
 
     # Oracle rejection curve (ideal uncertainty estimation)
     oracle_curve_rouge = sorted(df_sorted["ROUGE-L"], reverse=True)
     aucpr_oracle_rouge = compute_auc(oracle_curve_rouge)
-    print("\n\n aucpr oracle rouge", aucpr_oracle_rouge)
+    #print("\n\n aucpr oracle rouge", aucpr_oracle_rouge)
 
     # Step 4: Compute PRR
     prr_rouge = (aucpr_unc_rouge - aucpr_random_rouge) / (aucpr_oracle_rouge - aucpr_random_rouge)
@@ -87,11 +87,11 @@ def plot_PRR(df_sorted):
     # Repeat for BERTScore
     random_curve_bert = [df_sorted["BERTScore"].mean()] * (len(df_sorted) + 1)
     aucpr_random_bert = compute_auc(random_curve_bert)
-    print("\n\n aucpr_random_bert", aucpr_random_bert)
+    #print("\n\n aucpr_random_bert", aucpr_random_bert)
 
     oracle_curve_bert = sorted(df_sorted["BERTScore"], reverse=True)
     aucpr_oracle_bert = compute_auc(oracle_curve_bert)
-    print("\n\n aucpr oracle bert", aucpr_oracle_bert)
+    #print("\n\n aucpr oracle bert", aucpr_oracle_bert)
 
     prr_bert = (aucpr_unc_bert - aucpr_random_bert) / (aucpr_oracle_bert - aucpr_random_bert)
     #print("prr bert", prr_bert)
@@ -113,3 +113,7 @@ def plot_PRR(df_sorted):
     print(f"PRR (ROUGE-L): {prr_rouge:.4f}")
     print(f"PRR (BERTScore): {prr_bert:.4f}")
 
+def ue_grouped_table(df):
+    grouped_df = df.groupby('Method').apply(lambda x: x).reset_index(drop=True)
+    grouped_df = grouped_df.round(3)
+    grouped_df.to_csv("figures/ue_scores_table.csv", index=False)
