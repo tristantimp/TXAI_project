@@ -26,7 +26,7 @@ python main.py
 See the "figures" folder for the heatmap and Prediction Rejection Ratio plots
 
 ## Credits
-The main methodology of our project was heavily inspired by the work done by Fadeeva et al. [[1]](#1) as we attempted to implement their framework on a Dutch language model. 
+The main methodology of our project was heavily inspired by the work done by Fadeeva et al. [[1]](#1) as we attempted to implement their framework on a Dutch language model. LLMs were used if difficulties arose when implementing certain functions or to help debugging. In both cases, the generated code was checked to ensure that the original intentions were matched as LLMs are error prone. 
 
 ## References
 <a id="1">[1]</a> 

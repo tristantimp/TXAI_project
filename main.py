@@ -5,7 +5,8 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from rouge_score import rouge_scorer
 from bert_score import score as bert_score
 from tqdm import tqdm
-from plotting import ue_heatmap, plot_PRR, ue_grouped_table
+from plotting import *
+from UE_methods import *
 
 # Setup 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -27,26 +28,6 @@ datasets = {
         ("It is raining cats and dogs.", "Het regent pijpestelen."),
         ("I disagree.", "Ik ben het er niet mee eens.")
     ]} 
-
-
-# UE Methods
-def mean_token_entropy(logits):
-    probs = torch.nn.functional.softmax(logits, dim=-1)
-    log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
-    entropies = -(probs * log_probs).sum(dim=-1)
-    return entropies.mean().item()
-
-def max_sequence_probability(logits):
-    probs = torch.nn.functional.softmax(logits, dim=-1)
-    max_probs = probs.max(dim=-1).values
-    return max_probs.mean().item()
-
-def normalized_entropy(logits):
-    probs = torch.nn.functional.softmax(logits, dim=-1)
-    log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
-    entropy = -(probs * log_probs).sum(dim=-1)
-    max_entropy = np.log(logits.shape[-1])
-    return (entropy / max_entropy).mean().item()
 
 ue_methods = {
     "MeanEntropy": mean_token_entropy,
@@ -74,7 +55,7 @@ for task_name, samples in datasets.items():
             )
             tokens = output.sequences[0]
             generated_text = tokenizer.decode(tokens, skip_special_tokens=True)
-            print("\n generated text ", generated_text)
+            #print("\n generated text ", generated_text)
             logits = torch.stack(output.scores).squeeze(1)
             logits = torch.clamp(logits, min=-1e9, max=1e9)
 
@@ -87,7 +68,7 @@ for task_name, samples in datasets.items():
         # UE scores
         for method_name, func in ue_methods.items():
             ue_score = func(logits)
-            print(f"{method_name} score: {ue_score:.4f}")
+            #print(f"{method_name} score: {ue_score:.4f}")
             rows.append({
                 "Task": task_name,
                 "Method": method_name,
@@ -99,14 +80,19 @@ for task_name, samples in datasets.items():
 # create dafaframe of uncertainty estimates
 df = pd.DataFrame(rows)
 
-# group uncertainty estimates by ue method
+# group uncertainty estimates by UE method
 ue_grouped_table(df)
 
 # create heatmap of uncertainty estimates
 ue_heatmap(df, rows)
 
-# Sort predictions by uncertainty score
-df_sorted = df.sort_values(by="UE Score", ascending=True)
+# separate and sort dataframe by method
+df1, df2, df3 = separate_df(df)
 
-# compute and plot PRR
-plot_PRR(df_sorted)
+# compute and plot PRR for each UE method
+prr_rouge, prr_bert = plot_PRR(df1, "MaxSeqProb")
+prr_rouge2, prr_bert2 = plot_PRR(df2, "MeanEntropy") 
+prr_rouge3, prr_bert3 = plot_PRR(df3, "NormEntropy")  
+
+PRR_table(prr_rouge, prr_rouge2, prr_rouge3, prr_bert, prr_bert2, prr_bert3)
+
