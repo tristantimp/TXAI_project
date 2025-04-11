@@ -1,3 +1,4 @@
+print("Loading libraries...")
 import torch
 import numpy as np
 import pandas as pd
@@ -10,10 +11,12 @@ from UE_methods import *
 
 # Setup 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+print("Using device: ", device)
 model_name = "facebook/mbart-large-50-many-to-many-mmt"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
 model.eval()
+print("Model loaded...")
 
 src_lang = "en_XX"
 tgt_lang = "nl_XX"
@@ -26,7 +29,12 @@ datasets = {
         ("It is raining today.", "Het regent vandaag."),
         ("Will you invite me to your brother-in-law's birthday?.", "Nodig je mij uit naar je zwager's verjaardag?."),
         ("It is raining cats and dogs.", "Het regent pijpestelen."),
-        ("I disagree.", "Ik ben het er niet mee eens.")
+        ("I disagree.", "Ik ben het er niet mee eens."),
+        ("She missed the train again.", "Ze heeft de trein weer gemist."),
+        ("They are planning to move abroad next year.","Ze zijn van plan om volgend jaar naar het buitenland te verhuizen."),
+        ("Can you pass me the salt, please?","Kun je me alsjeblieft het zout aangeven?"),
+        ("We need to come up with a better solution.", "We moeten met een betere oplossing komen."),
+        ("I have been working on this all day.","Ik ben hier de hele dag mee bezig geweest.")
     ]} 
 
 ue_methods = {
@@ -55,7 +63,7 @@ for task_name, samples in datasets.items():
             )
             tokens = output.sequences[0]
             generated_text = tokenizer.decode(tokens, skip_special_tokens=True)
-            #print("\n generated text ", generated_text)
+            print("\n Generated text: ", generated_text)
             logits = torch.stack(output.scores).squeeze(1)
             logits = torch.clamp(logits, min=-1e9, max=1e9)
 
