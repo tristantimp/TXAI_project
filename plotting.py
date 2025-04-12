@@ -33,9 +33,11 @@ def ue_heatmap(df, rows):
         linewidths=0.5, 
         cbar=True
     )
-    plt.title("Heatmap of Metrics by Task and Method", fontsize=14)
-    plt.xlabel("Metric", fontsize=12)
-    plt.ylabel("Task and Method", fontsize=12)
+    plt.title("Heatmap of Metrics by Task and Method", fontsize=20)
+    plt.xlabel("Metric", fontsize=20)
+    plt.ylabel("Task and Method", fontsize=20)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
     plt.tight_layout()
 
     plt.savefig("figures/ue_metrics_heatmap.png")
@@ -87,6 +89,7 @@ def plot_PRR(df_sorted, title):
     prr_bert = (aucpr_unc_bert - aucpr_random_bert) / (aucpr_oracle_bert - aucpr_random_bert)
 
     plt.figure(figsize=(10, 6))
+    plt.rcParams.update({'font.size': 18})
     plt.plot(pr_rouge, label="PR Curve (ROUGE-L)", marker='o')
     plt.plot(pr_bert, label="PR Curve (BERTScore)", marker='o')
     plt.axhline(y=random_curve[0], color='gray', linestyle='--', label="Random")
@@ -123,4 +126,5 @@ def PRR_table(prr_rouge,prr_rouge2,prr_rouge3,prr_bert, prr_bert2, prr_bert3):
     "BERTScore": [prr_bert, prr_bert2, prr_bert3]}
     index = ["MaxSeqProb", "MeanEntropy", "NormEntropy"]
     df = pd.DataFrame(data, index=index)
+    df = df.round(3)
     df.to_csv("figures/PRR_table.csv")
